@@ -32,7 +32,4 @@ Install all dependencies using:
 
 ```bash
 pip install -r requirements.txt
-=======
-# PDF-Q-A-BOT
-A Streamlit app to ask questions from any uploaded PDF using OpenAI.
->>>>>>> 2d16c3d86459cdbccbfcee233b748b905f7c9f26
+
