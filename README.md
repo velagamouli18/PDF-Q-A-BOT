@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 #  PDF Q&A Bot (Watsonx.ai + HuggingFace + FAISS)
 
 A Streamlit-based AI assistant that allows you to upload a PDF and ask questions about its content. It uses IBM Watsonx.ai LLM for answering questions, HuggingFace embeddings for semantic understanding, and FAISS for efficient document retrieval.
