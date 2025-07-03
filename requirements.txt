@@ -7,3 +7,5 @@ openai
 faiss-cpu
 python-dotenv
 requests
+sentence-transformers
+
