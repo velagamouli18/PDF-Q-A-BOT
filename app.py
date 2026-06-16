@@ -1,20 +1,18 @@
 import streamlit as st
 import fitz  # PyMuPDF
 import os
-import requests
 from groq import Groq
 from dotenv import load_dotenv
 
-# from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 
 # ======= 🔐 Load Secrets from .env =======
 load_dotenv()
-IBM_API_KEY = os.getenv("IBM_API_KEY")
-PROJECT_ID = os.getenv("PROJECT_ID")
-WATSONX_URL = os.getenv("WATSONX_URL")
+# IBM_API_KEY = os.getenv("IBM_API_KEY")
+# PROJECT_ID = os.getenv("PROJECT_ID")
+# WATSONX_URL = os.getenv("WATSONX_URL")
 
 # ======= 🧠 Watsonx LLM Call =======
 # def ask_watsonx(prompt, token):
@@ -43,36 +41,39 @@ WATSONX_URL = os.getenv("WATSONX_URL")
 #     except Exception:
 #         raise RuntimeError(f"❌ WatsonX API failed:\nStatus Code: {response.status_code}\nResponse:\n{response.text}")
 
-def ask_watsonx(prompt, token):
-    url = f"{WATSONX_URL}/ml/v1/text/generation?version=2024-05-01"
+# def ask_watsonx(prompt, token):
+#     url = f"{WATSONX_URL}/ml/v1/text/generation?version=2024-05-01"
 
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
+#     headers = {
+#         "Authorization": f"Bearer {token}",
+#         "Content-Type": "application/json"
+#     }
 
-    payload = {
-        "model_id": "ibm/granite-3-8b-instruct",
-        "input": prompt,
-        "project_id": PROJECT_ID,
-        "parameters": {
-            "decoding_method": "greedy",
-            "max_new_tokens": 300
-        }
-    }
+#     payload = {
+#         "model_id": "ibm/granite-3-8b-instruct",
+#         "input": prompt,
+#         "project_id": PROJECT_ID,
+#         "parameters": {
+#             "decoding_method": "greedy",
+#             "max_new_tokens": 300
+#         }
+#     }
 
-    response = requests.post(url, headers=headers, json=payload)
+#     response = requests.post(url, headers=headers, json=payload)
 
-    if response.status_code == 200:
-        return response.json()["results"][0]["generated_text"]
+#     if response.status_code == 200:
+#         return response.json()["results"][0]["generated_text"]
 
-    print("IBM Failed. Falling back to Groq...")
-    return ask_groq(prompt)
+#     print("IBM Failed. Falling back to Groq...")
+#     return ask_groq(prompt)
 
 def ask_groq(prompt):
-    client = Groq(
-        api_key=os.getenv("GROQ_API_KEY")
-    )
+    api_key = os.getenv("GROQ_API_KEY")
+
+    if not api_key:
+        raise ValueError("GROQ_API_KEY not found")
+
+    client = Groq(api_key=api_key)
 
     completion = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -87,22 +88,22 @@ def ask_groq(prompt):
     return completion.choices[0].message.content
 
 # ======= 🔑 IBM Token Fetch =======
-@st.cache_resource
-def get_cached_token():
-    return get_iam_token(IBM_API_KEY)
+# @st.cache_resource
+# def get_cached_token():
+#     return get_iam_token(IBM_API_KEY)
 
-def get_iam_token(api_key):
-    url = "https://iam.cloud.ibm.com/identity/token"
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    data = f"apikey={api_key}&grant_type=urn:ibm:params:oauth:grant-type:apikey"
-    response = requests.post(url, headers=headers, data=data)
+# def get_iam_token(api_key):
+#     url = "https://iam.cloud.ibm.com/identity/token"
+#     headers = {"Content-Type": "application/x-www-form-urlencoded"}
+#     data = f"apikey={api_key}&grant_type=urn:ibm:params:oauth:grant-type:apikey"
+#     response = requests.post(url, headers=headers, data=data)
 
-    if "access_token" not in response.json():
-        st.error("❌ Failed to get IBM IAM token. Response:")
-        st.code(response.text)
-        raise RuntimeError("Token fetch failed.")
+#     if "access_token" not in response.json():
+#         st.error("❌ Failed to get IBM IAM token. Response:")
+#         st.code(response.text)
+#         raise RuntimeError("Token fetch failed.")
 
-    return response.json()["access_token"]
+#     return response.json()["access_token"]
 
 # ======= 📄 PDF to Text =======
 def extract_text(pdf_file):
@@ -123,7 +124,7 @@ def create_vector_store(docs):
     return FAISS.from_documents(docs, embeddings)
 
 # ======= 🧠 RAG with Watsonx =======
-def generate_answer(vectorstore, question, token):
+def generate_answer(vectorstore, question):
     docs = vectorstore.similarity_search(question, k=3)
     context = "\n".join(doc.page_content for doc in docs)
 
@@ -143,11 +144,12 @@ Answer only using the provided context. If the answer is not available in the pr
     print("🔎 Retrieved Context:\n", context)
     print("❓ User Question:", question)
 
-    return ask_watsonx(prompt, token)
+    return ask_groq(prompt)
 
 # ======= 🚀 Streamlit App =======
 st.set_page_config(page_title="PDF Q&A", layout="wide")
-st.title("📚 Chat With Your PDF (Watsonx.ai + HuggingFace + FAISS)")
+st.title("📚 Chat With Your PDF (Groq + HuggingFace + FAISS)")
+#st.title("📚 Chat With Your PDF (Watsonx.ai + HuggingFace + FAISS)")
 
 pdf = st.file_uploader("Upload your PDF file here", type="pdf")
 
@@ -157,7 +159,7 @@ if pdf:
 
     docs = get_chunks(text)
     vectorstore = create_vector_store(docs)
-    token = get_cached_token()
+    #token = get_cached_token()
 
     st.success("✅ PDF processed and ready!")
     st.markdown("---")
@@ -168,9 +170,11 @@ if pdf:
 
     question = st.text_input("Ask a question based on the PDF:")
     if question:
-        with st.spinner("🔎 Getting your answer from Watsonx..."):
+        #with st.spinner("🔎 Getting your answer from Watsonx..."):
+        with st.spinner("🔎 Generating answer..."):
             try:
-                answer = generate_answer(vectorstore, question, token)
+                #answer = generate_answer(vectorstore, question, token)
+                answer = generate_answer(vectorstore, question)
                 st.markdown("### 📥 Answer:")
                 st.success(answer)
             except Exception as e:
