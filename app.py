@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
-
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 # ======= 🔐 Load Secrets from .env =======
 load_dotenv()
 # IBM_API_KEY = os.getenv("IBM_API_KEY")
