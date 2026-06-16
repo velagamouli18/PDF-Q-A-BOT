@@ -2,6 +2,7 @@ import streamlit as st
 import fitz  # PyMuPDF
 import os
 import requests
+from groq import Groq
 from dotenv import load_dotenv
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -16,14 +17,42 @@ PROJECT_ID = os.getenv("PROJECT_ID")
 WATSONX_URL = os.getenv("WATSONX_URL")
 
 # ======= 🧠 Watsonx LLM Call =======
+# def ask_watsonx(prompt, token):
+#     url = f"{WATSONX_URL}/ml/v1/text/generation?version=2024-05-01"
+#     headers = {
+#         "Authorization": f"Bearer {token}",
+#         "Content-Type": "application/json"
+#     }
+#     payload = {
+#         "model_id": "ibm/granite-3-8b-instruct",
+#         "input": prompt,
+#         "project_id": PROJECT_ID,
+#         "parameters": {
+#             "decoding_method": "greedy",
+#             "max_new_tokens": 300
+#         }
+#     }
+
+#     response = requests.post(url, headers=headers, json=payload)
+
+#     print("🔁 Watsonx Response Status:", response.status_code)
+#     print("🔁 Watsonx Raw Response:", response.text)
+
+#     try:
+#         return response.json()['results'][0]['generated_text']
+#     except Exception:
+#         raise RuntimeError(f"❌ WatsonX API failed:\nStatus Code: {response.status_code}\nResponse:\n{response.text}")
+
 def ask_watsonx(prompt, token):
     url = f"{WATSONX_URL}/ml/v1/text/generation?version=2024-05-01"
+
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
+
     payload = {
-        "model_id": "ibm/granite-3-2-8b-instruct",
+        "model_id": "ibm/granite-3-8b-instruct",
         "input": prompt,
         "project_id": PROJECT_ID,
         "parameters": {
@@ -34,13 +63,28 @@ def ask_watsonx(prompt, token):
 
     response = requests.post(url, headers=headers, json=payload)
 
-    print("🔁 Watsonx Response Status:", response.status_code)
-    print("🔁 Watsonx Raw Response:", response.text)
+    if response.status_code == 200:
+        return response.json()["results"][0]["generated_text"]
 
-    try:
-        return response.json()['results'][0]['generated_text']
-    except Exception:
-        raise RuntimeError(f"❌ WatsonX API failed:\nStatus Code: {response.status_code}\nResponse:\n{response.text}")
+    print("IBM Failed. Falling back to Groq...")
+    return ask_groq(prompt)
+
+def ask_groq(prompt):
+    client = Groq(
+        api_key=os.getenv("GROQ_API_KEY")
+    )
+
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
+
+    return completion.choices[0].message.content
 
 # ======= 🔑 IBM Token Fetch =======
 @st.cache_resource
