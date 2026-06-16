@@ -153,11 +153,16 @@ st.title("📚 Chat With Your PDF (Groq + HuggingFace + FAISS)")
 pdf = st.file_uploader("Upload your PDF file here", type="pdf")
 
 if pdf:
-    st.info("⏳ Extracting text from PDF...")
+    st.info("⏳ Extracting text...")
     text = extract_text(pdf)
-
+    
+    st.info("⏳ Splitting into chunks...")
     docs = get_chunks(text)
+    
+    st.info("⏳ Generating embeddings...")
     vectorstore = create_vector_store(docs)
+    
+    st.success("✅ Ready!")
     #token = get_cached_token()
 
     st.success("✅ PDF processed and ready!")
